@@ -37,6 +37,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "124231d8-d32b-4b3b-b7ef-0f9035974dac"
+      }
+    },
+    "owner": "foss-corp"
   }
 }

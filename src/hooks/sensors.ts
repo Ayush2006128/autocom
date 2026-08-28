@@ -1,4 +1,4 @@
-import { Gyroscope, GyroscopeMeasurement } from 'expo-sensors';
+import { Accelerometer, AccelerometerMeasurement, Gyroscope, GyroscopeMeasurement } from 'expo-sensors';
 import { useEffect, useState } from 'react';
 
 function useGyroscope() {
@@ -23,4 +23,27 @@ function useGyroscope() {
   return gyroscopeData;
 }
 
-export { useGyroscope };
+function useAccelerometer() {
+  const [accelerometerData, setAccelerometerData] = useState<AccelerometerMeasurement>({
+    x: 0,
+    y: 0,
+    z: 0,
+    timestamp: 0,
+  });
+
+  useEffect(() => {
+    Accelerometer.setUpdateInterval(100);
+    const subscription = Accelerometer.addListener((data) => {
+      setAccelerometerData(data);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  return accelerometerData;
+}
+
+export { useAccelerometer, useGyroscope };
+

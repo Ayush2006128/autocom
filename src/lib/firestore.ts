@@ -5,9 +5,13 @@ import {
   query,
   where,
   getDocs,
+  addDoc,
   collection,
   serverTimestamp,
+  onSnapshot,
+  orderBy,
   type Timestamp,
+  type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "@/firebaseConfig";
 
@@ -134,4 +138,85 @@ export async function saveExpoPushToken(
   token: string
 ): Promise<void> {
   await setDoc(doc(db, "users", uid), { expoPushToken: token }, { merge: true });
+}
+
+// ── Alert CRUD ─────────────────────────────────────────────────
+
+/** Create a new GREEN alert document. Returns the auto-generated doc ID. */
+export async function createAlert(
+  patientUid: string,
+  patientName: string
+): Promise<string> {
+  const alertData = {
+    patientUid,
+    patientName,
+    severity: "green" as const,
+    status: "active" as const,
+    createdAt: serverTimestamp(),
+  };
+
+  const alertRef = await addDoc(collection(db, "alerts"), alertData);
+  return alertRef.id;
+}
+
+/** Cancel an active alert (patient pressed "I'm OK"). */
+export async function cancelAlert(alertId: string): Promise<void> {
+  await setDoc(
+    doc(db, "alerts", alertId),
+    {
+      status: "cancelled",
+      cancelledAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+// ── Patient Lookup ─────────────────────────────────────────────
+
+/** Look up a patient's UID and displayName from their 6-char patientId code. */
+export async function getPatientByCode(
+  patientCode: string
+): Promise<{ uid: string; displayName: string } | null> {
+  const usersRef = collection(db, "users");
+  const q = query(
+    usersRef,
+    where("patientId", "==", patientCode.toUpperCase()),
+    where("role", "==", "patient")
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+
+  const patientDoc = snapshot.docs[0];
+  return { uid: patientDoc.id, displayName: (patientDoc.data() as UserDoc).displayName };
+}
+
+// ── Alert Subscriptions ────────────────────────────────────────
+
+/** Alert doc with its Firestore document ID attached. */
+export interface AlertDocWithId extends AlertDoc {
+  id: string;
+}
+
+/**
+ * Subscribe to real-time alert updates for a given patient UID.
+ * Returns an unsubscribe function.
+ */
+export function subscribeToAlerts(
+  patientUid: string,
+  onUpdate: (alerts: AlertDocWithId[]) => void
+): Unsubscribe {
+  const alertsRef = collection(db, "alerts");
+  const q = query(
+    alertsRef,
+    where("patientUid", "==", patientUid),
+    orderBy("createdAt", "desc")
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const alerts: AlertDocWithId[] = snapshot.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as AlertDoc),
+    }));
+    onUpdate(alerts);
+  });
 }

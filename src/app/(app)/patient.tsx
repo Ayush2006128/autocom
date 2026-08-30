@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import {
   View,
   Text,
@@ -7,9 +8,70 @@ import {
 } from "react-native";
 import { Colors } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
+import { useFallDetection, type AlertSeverity } from "@/hooks/useFallDetection";
+import { createAlert, cancelAlert } from "@/lib/firestore";
+
+// ── Severity display config ────────────────────────────────────
+
+const SEVERITY_CONFIG: Record<AlertSeverity, {
+  label: string;
+  hint: string;
+  dotColor: string;
+  cardBg: string;
+  textColor: string;
+}> = {
+  safe: {
+    label: "All Clear",
+    hint: "Fall detection is active. Your caregivers will be notified if you need help.",
+    dotColor: Colors.green,
+    cardBg: Colors.greenLight,
+    textColor: Colors.green,
+  },
+  green: {
+    label: "🟢 Fall Detected",
+    hint: "Your caregivers have been notified. Tap \"I'm OK\" if you're fine.",
+    dotColor: Colors.green,
+    cardBg: Colors.greenLight,
+    textColor: Colors.green,
+  },
+  yellow: {
+    label: "🟡 Are You OK?",
+    hint: "Your caregivers have been asked to check on you. Tap \"I'm OK\" to cancel.",
+    dotColor: Colors.yellow,
+    cardBg: Colors.yellowLight,
+    textColor: Colors.yellow,
+  },
+  red: {
+    label: "🔴 SOS Active",
+    hint: "Emergency alert sent. Your caregivers are being alerted with SOS.",
+    dotColor: Colors.red,
+    cardBg: Colors.redLight,
+    textColor: Colors.red,
+  },
+};
 
 export default function PatientDashboard() {
   const { user, userDoc, signOut } = useAuth();
+
+  const handleGreenTrigger = useCallback(async () => {
+    const alertId = await createAlert(
+      user?.uid ?? "",
+      user?.displayName ?? userDoc?.displayName ?? "Patient"
+    );
+    return alertId;
+  }, [user, userDoc]);
+
+  const handleCancel = useCallback(async (alertId: string) => {
+    await cancelAlert(alertId);
+  }, []);
+
+  const { severity, detecting, cancelAlert: dismissAlert } = useFallDetection({
+    onGreenTrigger: handleGreenTrigger,
+    onCancel: handleCancel,
+  });
+
+  const config = SEVERITY_CONFIG[severity];
+  const isAlertActive = severity !== "safe";
 
   const handleCopyCode = () => {
     if (userDoc?.patientId) {
@@ -37,14 +99,25 @@ export default function PatientDashboard() {
         <Text style={styles.codeHint}>Tap to share with caregivers</Text>
       </TouchableOpacity>
 
-      {/* Status Indicator */}
-      <View style={styles.statusCard}>
-        <View style={styles.statusDot} />
-        <Text style={styles.statusText}>All Clear</Text>
-        <Text style={styles.statusHint}>
-          Fall detection is active. Your caregivers will be notified if you need help.
+      {/* Status Indicator — changes color based on severity */}
+      <View style={[styles.statusCard, { backgroundColor: config.cardBg }]}>
+        <View style={[styles.statusDot, { backgroundColor: config.dotColor }]} />
+        <Text style={[styles.statusText, { color: config.textColor }]}>
+          {detecting ? "⚠️ Detecting fall…" : config.label}
         </Text>
+        <Text style={styles.statusHint}>{config.hint}</Text>
       </View>
+
+      {/* "I'm OK" cancel button — shown only when alert is active */}
+      {isAlertActive && (
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          onPress={dismissAlert}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.cancelBtnText}>I'm OK 👍</Text>
+        </TouchableOpacity>
+      )}
 
       {/* How it works */}
       <View style={styles.infoCard}>
@@ -122,7 +195,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusCard: {
-    backgroundColor: Colors.greenLight,
     borderRadius: 16,
     padding: 24,
     alignItems: "center",
@@ -132,13 +204,11 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: Colors.green,
     marginBottom: 8,
   },
   statusText: {
     fontSize: 20,
     fontWeight: "700",
-    color: Colors.green,
   },
   statusHint: {
     fontSize: 13,
@@ -146,6 +216,23 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: "center",
     lineHeight: 18,
+  },
+  cancelBtn: {
+    backgroundColor: Colors.teal,
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cancelBtnText: {
+    color: Colors.textOnPrimary,
+    fontSize: 20,
+    fontWeight: "800",
   },
   infoCard: {
     backgroundColor: Colors.surface,

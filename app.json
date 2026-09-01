@@ -17,7 +17,8 @@
         "monochromeImage": "./assets/images/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.ayush2006128.autocom"
+      "package": "com.ayush2006128.autocom",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",

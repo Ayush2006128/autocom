@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "451091838379",
+    "project_id": "autocom-c0f98",
+    "storage_bucket": "autocom-c0f98.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:451091838379:android:6f7e172de23c913aa88eee",
+        "android_client_info": {
+          "package_name": "com.ayush2006128.autocom"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDS5zP1mVQHWsP226vIrEIhaC7u4RriRNA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

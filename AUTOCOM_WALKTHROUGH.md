@@ -36,7 +36,7 @@ An automatic communicator for physically impaired users (SMA, etc.). When a pati
 autocom/
 ├── src/
 │   ├── app/                        # expo-router file-based routes
-│   │   ├── _layout.tsx             # Root layout: AuthProvider + AuthGuard
+│   │   ├── _layout.tsx             # Root layout: AuthProvider + AuthGuard + push token registration
 │   │   ├── index.tsx               # Redirects to /(auth)/login
 │   │   ├── (auth)/                 # Unauthenticated screens
 │   │   │   ├── _layout.tsx         # Stack layout, no header
@@ -52,12 +52,20 @@ autocom/
 │   │   ├── theme.ts                # Color palette (teal/cyan/mint + alert colors)
 │   │   ├── auth-context.tsx        # AuthProvider, useAuth() hook
 │   │   ├── firestore.ts           # User CRUD, patient ID gen, CG linking, alert CRUD
-│   │   └── fall-detector.ts        # detectFall() — accel + gyro algorithm
+│   │   ├── fall-detector.ts        # detectFall() — accel + gyro algorithm
+│   │   └── notifications.ts       # Push token registration, Android channels, foreground handler
 │   ├── hooks/
 │   │   ├── sensors.ts              # useAccelerometer(), useGyroscope() hooks
 │   │   └── useFallDetection.ts     # useFallDetection() — wires sensors → detectFall → GREEN alert
 │   └── firebaseConfig.ts          # Firebase init with AsyncStorage persistence
+├── functions/                      # Firebase Cloud Functions
+│   ├── package.json                # Node.js dependencies (firebase-functions, firebase-admin)
+│   ├── tsconfig.json               # TS config for Cloud Functions
+│   └── src/
+│       └── index.ts                # onAlertCreated + onAlertUpdated → Expo push notifications
 ├── assets/images/                  # App icons, splash
+├── firebase.json                   # Firebase deployment config
+├── .firebaserc                     # Firebase project alias
 ├── app.json                        # Expo config (scheme: autocom)
 ├── eas.json                        # EAS Build config
 ├── package.json                    # Dependencies
@@ -191,13 +199,21 @@ Extracted from the app icon (teal-to-mint gradient):
 ## What's Next 🔜
 
 ### Step 4 — Push Notifications (Expo + Firebase Cloud Functions)
-- [ ] Register Expo push token on login → save to `users/{uid}.expoPushToken`
-- [ ] Create Firebase Cloud Function triggered by `alerts` document writes
-- [ ] Function looks up all caregivers linked to the patient
-- [ ] Sends Expo push notification via `https://exp.host/--/api/v2/push/send`
-- [ ] GREEN: `"I think you should call {patient}"`
-- [ ] YELLOW: `"Sir/Ma'am You should go back to {patient}"`
-- [ ] Android notification channel setup (`expo-notifications` plugin in app.json)
+- [x] Created `src/lib/notifications.ts`:
+  - `registerForPushNotificationsAsync()` — requests permissions, creates Android channels, gets Expo push token
+  - `setNotificationHandler()` — configures foreground notification display with `shouldShowAlert/Banner/List`
+  - Two Android notification channels: `alerts` (HIGH) and `sos` (MAX with SOS vibration pattern)
+- [x] Updated `src/app/_layout.tsx`:
+  - `usePushNotifications()` hook registers token on every app launch and saves to Firestore
+  - `addNotificationResponseReceivedListener` handles notification taps → navigates to correct dashboard
+- [x] Expo push token saved to `users/{uid}.expoPushToken` via existing `saveExpoPushToken()`
+- [x] Created Firebase Cloud Functions (`functions/src/index.ts`):
+  - `onAlertCreated` — triggers on new alert docs, sends GREEN notifications to linked caregivers
+  - `onAlertUpdated` — triggers on severity escalation (YELLOW/RED), sends updated notifications
+  - Uses Expo Push API (`https://exp.host/--/api/v2/push/send`) with batching
+  - Messages: GREEN="I think you should call {patient}", YELLOW="Sir/Ma'am You should go back to {patient}", RED="EMERGENCY SOS"
+- [x] Created `firebase.json` + `.firebaserc` for deployment
+- [x] 0 TypeScript errors (app + functions)
 
 ### Step 5 — Alert Escalation Engine
 - [ ] On patient device, after GREEN triggers:
@@ -259,6 +275,13 @@ npx tsc --noEmit
 
 # Regenerate typed routes after adding/removing route files
 npx expo customize tsconfig.json
+
+# Deploy Cloud Functions
+cd functions && npm run build && cd ..
+firebase deploy --only functions
+
+# View Cloud Function logs
+firebase functions:log
 ```
 
 ---

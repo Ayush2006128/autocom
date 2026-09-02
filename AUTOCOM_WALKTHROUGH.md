@@ -216,15 +216,16 @@ Extracted from the app icon (teal-to-mint gradient):
 - [x] 0 TypeScript errors (app + functions)
 
 ### Step 5 — Alert Escalation Engine
-- [ ] On patient device, after GREEN triggers:
+- [x] On patient device, after GREEN triggers:
   - Start 5-second timer → if patient doesn't cancel → YELLOW
   - Send local notification to patient with "I'm OK" action button
-- [ ] On patient device, after YELLOW triggers:
+- [x] On patient device, after YELLOW triggers:
   - Start 10-second timer → if patient doesn't cancel → RED
   - Send local notification to patient with "I'm OK" action button
-- [ ] Tapping patient's notification or "I'm OK" button cancels escalation
-- [ ] Update Firestore alert doc on each escalation (severity, timestamps)
-- [ ] Handle notification response via `addNotificationResponseReceivedListener`
+- [x] Tapping patient's notification or "I'm OK" button cancels escalation
+- [x] Update Firestore alert doc on each escalation (severity, timestamps)
+- [x] Handle notification response via `addNotificationResponseReceivedListener`
+- [x] 0 TypeScript errors
 
 ### Step 6 — RED Alert: SOS Morse + Critical Notification
 - [ ] SOS Morse code vibration pattern: `··· −−− ···`

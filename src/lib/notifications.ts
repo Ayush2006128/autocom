@@ -118,3 +118,76 @@ export async function registerForPushNotificationsAsync(): Promise<
     return undefined;
   }
 }
+
+// ── Notification Categories (Interactive Actions) ──────────────
+
+/** Category identifier for patient fall alerts */
+export const ALERT_CATEGORY_ID = "patient_fall_alert";
+
+/** Action identifier for the "I'm OK" button */
+export const IM_OK_ACTION_ID = "im_ok_dismiss";
+
+/**
+ * Register the notification category with an "I'm OK" action button.
+ * Must be called once before scheduling notifications with this category.
+ * Safe to call multiple times (idempotent).
+ */
+export async function setupNotificationCategories(): Promise<void> {
+  await Notifications.setNotificationCategoryAsync(ALERT_CATEGORY_ID, [
+    {
+      identifier: IM_OK_ACTION_ID,
+      buttonTitle: "I'm OK 👍",
+      options: {
+        opensAppToForeground: false,
+      },
+    },
+  ]);
+}
+
+// ── Local Patient Notifications ────────────────────────────────
+
+/**
+ * Send a local notification to the patient with an "I'm OK" action button.
+ * Used during alert escalation to give the patient a chance to cancel.
+ *
+ * @param severity - The current alert severity ("green" | "yellow" | "red")
+ * @param alertId - The Firestore alert document ID (passed as data for the handler)
+ */
+export async function sendPatientAlertNotification(
+  severity: "green" | "yellow" | "red",
+  alertId: string
+): Promise<string> {
+  const content: Record<string, unknown> = {
+    data: { alertId, screen: "patient", action: "escalation" },
+    categoryIdentifier: ALERT_CATEGORY_ID,
+  };
+
+  if (severity === "green") {
+    content.title = "🟢 Fall Detected";
+    content.body = "Are you okay? Tap \"I'm OK\" if you're fine.";
+    content.sound = "default";
+  } else if (severity === "yellow") {
+    content.title = "🟡 Are You OK?";
+    content.body =
+      "Your caregivers are being asked to check on you. Tap \"I'm OK\" to cancel.";
+    content.sound = "default";
+  } else {
+    content.title = "🔴 SOS Active";
+    content.body =
+      "Emergency SOS has been triggered. Tap \"I'm OK\" if you're safe.";
+    content.sound = "default";
+  }
+
+  return await Notifications.scheduleNotificationAsync({
+    content: content as Notifications.NotificationContentInput,
+    trigger: null, // Deliver immediately
+  });
+}
+
+/**
+ * Dismiss all currently displayed notifications.
+ * Called when the patient cancels an alert to clear stale notifications.
+ */
+export async function dismissAllNotifications(): Promise<void> {
+  await Notifications.dismissAllNotificationsAsync();
+}

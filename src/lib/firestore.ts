@@ -171,6 +171,24 @@ export async function cancelAlert(alertId: string): Promise<void> {
   );
 }
 
+/** Escalate an active alert to YELLOW or RED. Updates severity + timestamp. */
+export async function escalateAlert(
+  alertId: string,
+  newSeverity: "yellow" | "red"
+): Promise<void> {
+  const update: Record<string, unknown> = {
+    severity: newSeverity,
+  };
+
+  if (newSeverity === "yellow") {
+    update.escalatedToYellowAt = serverTimestamp();
+  } else {
+    update.escalatedToRedAt = serverTimestamp();
+  }
+
+  await setDoc(doc(db, "alerts", alertId), update, { merge: true });
+}
+
 // ── Patient Lookup ─────────────────────────────────────────────
 
 /** Look up a patient's UID and displayName from their 6-char patientId code. */

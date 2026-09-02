@@ -9,7 +9,7 @@ import {
 import { Colors } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
 import { useFallDetection, type AlertSeverity } from "@/hooks/useFallDetection";
-import { createAlert, cancelAlert } from "@/lib/firestore";
+import { createAlert, cancelAlert, escalateAlert } from "@/lib/firestore";
 
 // ── Severity display config ────────────────────────────────────
 
@@ -61,12 +61,20 @@ export default function PatientDashboard() {
     return alertId;
   }, [user, userDoc]);
 
+  const handleEscalate = useCallback(
+    async (alertId: string, severity: "yellow" | "red") => {
+      await escalateAlert(alertId, severity);
+    },
+    []
+  );
+
   const handleCancel = useCallback(async (alertId: string) => {
     await cancelAlert(alertId);
   }, []);
 
   const { severity, detecting, cancelAlert: dismissAlert } = useFallDetection({
     onGreenTrigger: handleGreenTrigger,
+    onEscalate: handleEscalate,
     onCancel: handleCancel,
   });
 

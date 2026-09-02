@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { ActivityIndicator, View, StyleSheet } from "react-native";
 import { Slot, useRouter, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import * as Notifications from "expo-notifications";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { saveExpoPushToken, cancelAlert } from "@/lib/firestore";
@@ -136,6 +137,7 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <AuthGuard>
+        <StatusBar style="dark" />
         <Slot />
       </AuthGuard>
     </AuthProvider>

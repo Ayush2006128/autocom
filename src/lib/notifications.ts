@@ -32,7 +32,6 @@ async function setupAndroidChannels() {
     name: "Fall Alerts",
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
-    sound: "default",
     enableVibrate: true,
     showBadge: true,
   });

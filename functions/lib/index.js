@@ -75,7 +75,7 @@ async function sendExpoPushNotifications(messages) {
  * Given a patient UID and alert data, find all linked caregivers
  * and send them push notifications.
  */
-async function notifyCaregivers(alert) {
+async function notifyCaregivers(alert, alertId) {
     // 1. Get the patient's patientId (6-char code)
     const patientSnap = await db.collection("users").doc(alert.patientUid).get();
     if (!patientSnap.exists) {
@@ -122,13 +122,14 @@ async function notifyCaregivers(alert) {
         to: token,
         title,
         body,
-        sound: "default",
+        sound: alert.severity === "red" ? "sos_alarm.wav" : "default",
         priority: alert.severity === "red" ? "high" : "default",
         channelId,
         data: {
             screen: "caregiver",
             alertSeverity: alert.severity,
             patientName: alert.patientName,
+            alertId,
         },
     }));
     // 5. Send
@@ -147,7 +148,7 @@ exports.onAlertCreated = (0, firestore_1.onDocumentCreated)("alerts/{alertId}", 
         return;
     }
     firebase_functions_1.logger.info(`New ${data.severity.toUpperCase()} alert for patient ${data.patientName} (${data.patientUid})`);
-    await notifyCaregivers(data);
+    await notifyCaregivers(data, event.params.alertId);
 });
 // ── Cloud Function: on alert updated (escalation) ─────────────
 /**
@@ -174,6 +175,6 @@ exports.onAlertUpdated = (0, firestore_1.onDocumentUpdated)("alerts/{alertId}", 
     if (after.status !== "active")
         return;
     firebase_functions_1.logger.info(`Alert escalated from ${before.severity.toUpperCase()} → ${after.severity.toUpperCase()} for patient ${after.patientName}`);
-    await notifyCaregivers(after);
+    await notifyCaregivers(after, event.params.alertId);
 });
 //# sourceMappingURL=index.js.map

@@ -115,7 +115,7 @@ async function sendExpoPushNotifications(messages: ExpoPushMessage[]): Promise<v
  * Given a patient UID and alert data, find all linked caregivers
  * and send them push notifications.
  */
-async function notifyCaregivers(alert: AlertData): Promise<void> {
+async function notifyCaregivers(alert: AlertData, alertId: string): Promise<void> {
   // 1. Get the patient's patientId (6-char code)
   const patientSnap = await db.collection("users").doc(alert.patientUid).get();
   if (!patientSnap.exists) {
@@ -172,13 +172,14 @@ async function notifyCaregivers(alert: AlertData): Promise<void> {
     to: token,
     title,
     body,
-    sound: "default",
+    sound: alert.severity === "red" ? "sos_alarm.wav" : "default",
     priority: alert.severity === "red" ? "high" : "default",
     channelId,
     data: {
       screen: "caregiver",
       alertSeverity: alert.severity,
       patientName: alert.patientName,
+      alertId,
     },
   }));
 
@@ -208,7 +209,7 @@ export const onAlertCreated = onDocumentCreated(
       `New ${data.severity.toUpperCase()} alert for patient ${data.patientName} (${data.patientUid})`
     );
 
-    await notifyCaregivers(data);
+    await notifyCaregivers(data, event.params.alertId);
   }
 );
 
@@ -247,6 +248,6 @@ export const onAlertUpdated = onDocumentUpdated(
       `Alert escalated from ${before.severity.toUpperCase()} → ${after.severity.toUpperCase()} for patient ${after.patientName}`
     );
 
-    await notifyCaregivers(after);
+    await notifyCaregivers(after, event.params.alertId);
   }
 );

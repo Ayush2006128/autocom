@@ -44,10 +44,45 @@ async function setupAndroidChannels() {
       0, 200, 100, 200, 100, 200, 300, 500, 100, 500, 100, 500, 300, 200, 100,
       200, 100, 200,
     ],
-    sound: "default",
+    sound: SOS_SOUND,
     enableVibrate: true,
     showBadge: true,
   });
+}
+
+/** Start repeating critical notifications while a caregiver acknowledges an SOS. */
+export async function startSosNotificationLoop(
+  alertId: string,
+  patientName: string
+): Promise<void> {
+  const existingNotificationId = sosLoopNotificationIds.get(alertId);
+  if (existingNotificationId) return;
+
+  const notificationId = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "🔴 EMERGENCY SOS",
+      body: `${patientName} needs immediate help! Tap to acknowledge.`,
+      sound: SOS_SOUND,
+      data: { screen: "caregiver", alertId, alertSeverity: "red" },
+      ...(Platform.OS === "android" ? { channelId: SOS_CHANNEL_ID } : {}),
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: SOS_REPEAT_SECONDS,
+      repeats: true,
+    },
+  });
+  sosLoopNotificationIds.set(alertId, notificationId);
+}
+
+/** Stop all repeating SOS notifications after caregiver acknowledgement. */
+export async function stopSosNotificationLoop(): Promise<void> {
+  await Promise.all(
+    [...sosLoopNotificationIds.values()].map((id) =>
+      Notifications.cancelScheduledNotificationAsync(id)
+    )
+  );
+  sosLoopNotificationIds.clear();
 }
 
 // ── Push token registration ────────────────────────────────────
@@ -125,6 +160,10 @@ export const ALERT_CATEGORY_ID = "patient_fall_alert";
 
 /** Action identifier for the "I'm OK" button */
 export const IM_OK_ACTION_ID = "im_ok_dismiss";
+export const SOS_CHANNEL_ID = "sos";
+const SOS_SOUND = "sos_alarm.wav";
+const SOS_REPEAT_SECONDS = 4;
+const sosLoopNotificationIds = new Map<string, string>();
 
 /**
  * Register the notification category with an "I'm OK" action button.
@@ -174,7 +213,12 @@ export async function sendPatientAlertNotification(
     content.title = "🔴 SOS Active";
     content.body =
       "Emergency SOS has been triggered. Tap \"I'm OK\" if you're safe.";
-    content.sound = "default";
+    content.sound = SOS_SOUND;
+    content.data = {
+      alertId,
+      screen: "patient",
+      action: "escalation",
+    };
   }
 
   return await Notifications.scheduleNotificationAsync({

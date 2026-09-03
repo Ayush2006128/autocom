@@ -9,6 +9,8 @@ import {
   registerForPushNotificationsAsync,
   setupNotificationCategories,
   IM_OK_ACTION_ID,
+  startSosNotificationLoop,
+  stopSosNotificationLoop,
 } from "@/lib/notifications";
 import { Colors } from "@/lib/theme";
 
@@ -23,6 +25,7 @@ function usePushNotifications() {
   const { user } = useAuth();
   const router = useRouter();
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
 
   // Register token and notification categories whenever user changes (login/logout)
   useEffect(() => {
@@ -45,10 +48,29 @@ function usePushNotifications() {
 
   // Listen for notification taps and action button presses
   useEffect(() => {
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener((notification) => {
+        const data = notification.request.content.data;
+        if (data?.alertSeverity === "red" && typeof data.alertId === "string") {
+          startSosNotificationLoop(
+            data.alertId,
+            typeof data.patientName === "string" ? data.patientName : "Your patient"
+          ).catch((err) =>
+            console.error("[AutoCom] Failed to start SOS notification loop:", err)
+          );
+        }
+      });
+
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
         const { actionIdentifier } = response;
         const data = response.notification.request.content.data;
+
+        if (data?.alertSeverity === "red") {
+          stopSosNotificationLoop().catch((err) =>
+            console.error("[AutoCom] Failed to stop SOS notification loop:", err)
+          );
+        }
 
         // Handle "I'm OK" action button from notification
         if (actionIdentifier === IM_OK_ACTION_ID) {
@@ -80,6 +102,7 @@ function usePushNotifications() {
       });
 
     return () => {
+      notificationListener.current?.remove();
       responseListener.current?.remove();
     };
   }, []);

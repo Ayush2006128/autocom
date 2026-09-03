@@ -228,12 +228,12 @@ Extracted from the app icon (teal-to-mint gradient):
 - [x] 0 TypeScript errors
 
 ### Step 6 — RED Alert: SOS Morse + Critical Notification
-- [ ] SOS Morse code vibration pattern: `··· −−− ···`
+- [x] SOS Morse code vibration pattern: `··· −−− ···`
   - Pattern: `[0, 200, 100, 200, 100, 200, 300, 500, 100, 500, 100, 500, 300, 200, 100, 200, 100, 200]`
-- [ ] SOS beep audio playback on caregiver phone (generate or bundle .wav)
-- [ ] Android notification channel with `AndroidImportance.MAX` + alarm sound
-- [ ] Full-screen / heads-up notification on caregiver phone
-- [ ] Loop SOS pattern until caregiver acknowledges
+- [x] SOS beep audio playback on caregiver phone (bundled `sos_alarm.wav`)
+- [x] Android notification channel with `AndroidImportance.MAX` + alarm sound
+- [x] Heads-up critical notification on caregiver phone
+- [x] Loop SOS notifications until caregiver acknowledges
 
 ### Step 7 — Polish & Edge Cases
 - [ ] Background sensor monitoring (Android foreground service via `expo-task-manager`)

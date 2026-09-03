@@ -10,7 +10,6 @@ import {
   setupNotificationCategories,
   IM_OK_ACTION_ID,
   startSosNotificationLoop,
-  stopSosNotificationLoop,
 } from "@/lib/notifications";
 import { Colors } from "@/lib/theme";
 
@@ -51,7 +50,11 @@ function usePushNotifications() {
     notificationListener.current =
       Notifications.addNotificationReceivedListener((notification) => {
         const data = notification.request.content.data;
-        if (data?.alertSeverity === "red" && typeof data.alertId === "string") {
+        if (
+          data?.alertSeverity === "red" &&
+          data?.screen === "caregiver" &&
+          typeof data.alertId === "string"
+        ) {
           startSosNotificationLoop(
             data.alertId,
             typeof data.patientName === "string" ? data.patientName : "Your patient"
@@ -65,12 +68,6 @@ function usePushNotifications() {
       Notifications.addNotificationResponseReceivedListener((response) => {
         const { actionIdentifier } = response;
         const data = response.notification.request.content.data;
-
-        if (data?.alertSeverity === "red") {
-          stopSosNotificationLoop().catch((err) =>
-            console.error("[AutoCom] Failed to stop SOS notification loop:", err)
-          );
-        }
 
         // Handle "I'm OK" action button from notification
         if (actionIdentifier === IM_OK_ACTION_ID) {

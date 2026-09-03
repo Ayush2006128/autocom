@@ -18,6 +18,7 @@ interface FallDetectionState {
 }
 
 interface UseFallDetectionOptions {
+  enabled?: boolean;
   /** Called when severity escalates to GREEN. Should write alert to Firestore and return the doc ID. */
   onGreenTrigger: () => Promise<string>;
   /** Called when severity escalates to YELLOW or RED. Should update the alert doc in Firestore. */
@@ -47,9 +48,10 @@ export function useFallDetection({
   onGreenTrigger,
   onEscalate,
   onCancel,
+  enabled = true,
 }: UseFallDetectionOptions) {
-  const accelData = useAccelerometer();
-  const gyroData = useGyroscope();
+  const accelData = useAccelerometer(enabled);
+  const gyroData = useGyroscope(enabled);
 
   const [state, setState] = useState<FallDetectionState>({
     severity: "safe",
@@ -152,6 +154,13 @@ export function useFallDetection({
 
   // Process sensor data on each update
   useEffect(() => {
+    if (!enabled) {
+      clearEscalationTimers();
+      sustainedSinceRef.current = null;
+      setState((prev) => ({ ...prev, detecting: false }));
+      return;
+    }
+
     // Don't run detection if an alert is already active
     if (stateRef.current.severity !== "safe") return;
 
@@ -196,7 +205,7 @@ export function useFallDetection({
         setState((prev) => ({ ...prev, detecting: false }));
       }
     }
-  }, [accelData, gyroData]);
+  }, [accelData, gyroData, enabled, clearEscalationTimers]);
 
   // ── Cancel handler ─────────────────────────────────────────
 

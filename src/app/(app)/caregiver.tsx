@@ -12,8 +12,15 @@ import { useAuth } from "@/lib/auth-context";
 import {
   getPatientByCode,
   subscribeToAlerts,
+  cancelAlert,
   type AlertDocWithId,
 } from "@/lib/firestore";
+import {
+  isForegroundMonitoringRunning,
+  startForegroundMonitoring,
+  stopForegroundMonitoring,
+} from "@/lib/foreground-service";
+import { stopSosNotificationLoop } from "@/lib/notifications";
 
 // ── Severity display helpers ───────────────────────────────────
 
@@ -57,6 +64,34 @@ export default function CaregiverDashboard() {
   const [patientName, setPatientName] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<AlertDocWithId[]>([]);
   const [loading, setLoading] = useState(true);
+  const [monitoring, setMonitoring] = useState(false);
+  const [serviceLoading, setServiceLoading] = useState(true);
+
+  useEffect(() => {
+    isForegroundMonitoringRunning()
+      .then(setMonitoring)
+      .finally(() => setServiceLoading(false));
+  }, []);
+
+  const toggleMonitoring = async () => {
+    setServiceLoading(true);
+    try {
+      if (monitoring) {
+        await stopForegroundMonitoring();
+        setMonitoring(false);
+      } else {
+        await startForegroundMonitoring();
+        setMonitoring(true);
+      }
+    } finally {
+      setServiceLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await stopForegroundMonitoring();
+    await signOut();
+  };
 
   // Look up patient UID from code, then subscribe to their alerts
   useEffect(() => {
@@ -100,7 +135,12 @@ export default function CaregiverDashboard() {
         <Text style={styles.greeting}>
           Hi, {user?.displayName ?? "Caregiver"} 👋
         </Text>
-        <TouchableOpacity onPress={signOut} style={styles.signOutBtn}>
+        <TouchableOpacity
+          onPress={handleSignOut}
+          style={styles.signOutBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+        >
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
@@ -115,6 +155,38 @@ export default function CaregiverDashboard() {
           Code: {userDoc?.linkedPatientId ?? "------"}
         </Text>
       </View>
+
+      <View
+        style={styles.monitorStatus}
+        accessibilityLabel={
+          monitoring
+            ? "Background monitoring is active"
+            : "Background monitoring is stopped"
+        }
+      >
+        <View
+          style={[
+            styles.monitorStatusDot,
+            { backgroundColor: monitoring ? Colors.green : Colors.disabled },
+          ]}
+        />
+        <Text style={styles.monitorStatusText}>
+          {monitoring ? "Background monitoring active" : "Monitoring stopped"}
+        </Text>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.monitorBtn, monitoring ? styles.stopBtn : styles.startBtn]}
+        onPress={toggleMonitoring}
+        disabled={serviceLoading}
+        accessibilityRole="button"
+        accessibilityLabel={monitoring ? "Stop monitoring" : "Start monitoring"}
+        accessibilityState={{ disabled: serviceLoading }}
+      >
+        <Text style={styles.monitorBtnText}>
+          {serviceLoading ? "Updating…" : monitoring ? "Stop Monitoring" : "Start Monitoring"}
+        </Text>
+      </TouchableOpacity>
 
       {/* Active Alert or All Clear */}
       {loading ? (
@@ -138,6 +210,21 @@ export default function CaregiverDashboard() {
           <Text style={styles.alertTime}>
             {formatTimestamp(activeAlert.createdAt)}
           </Text>
+          {activeAlert.severity === "red" && (
+            <TouchableOpacity
+              style={styles.ackBtn}
+              onPress={() => {
+                stopSosNotificationLoop().catch((err) =>
+                  console.error("[AutoCom] Failed to stop SOS alarm:", err)
+                );
+                cancelAlert(activeAlert.id).catch((err) =>
+                  console.error("[AutoCom] Failed to acknowledge SOS:", err)
+                );
+              }}
+            >
+              <Text style={styles.ackBtnText}>Stop SOS Alarm</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <View style={styles.statusCard}>
@@ -273,6 +360,36 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: "monospace",
   },
+  monitorBtn: {
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  monitorStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  monitorStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  monitorStatusText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  startBtn: { backgroundColor: Colors.teal },
+  stopBtn: { backgroundColor: Colors.red },
+  monitorBtnText: {
+    color: Colors.textOnPrimary,
+    fontSize: 18,
+    fontWeight: "800",
+  },
   // Loading state
   loadingCard: {
     backgroundColor: Colors.surface,
@@ -315,6 +432,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 4,
+  },
+  ackBtn: {
+    backgroundColor: Colors.red,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginTop: 16,
+  },
+  ackBtnText: {
+    color: Colors.textOnPrimary,
+    fontWeight: "800",
   },
   // All clear
   statusCard: {

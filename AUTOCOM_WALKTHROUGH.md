@@ -235,7 +235,13 @@ Extracted from the app icon (teal-to-mint gradient):
 - [x] Heads-up critical notification on caregiver phone
 - [x] Loop SOS notifications until caregiver acknowledges
 
-### Step 7 — Polish & Edge Cases
+### Step 7 — Polish & Edge Cases (Current Scope Complete)
+- [x] Start/stop monitoring button on patient and caregiver profiles
+- [x] Android native foreground service keeps monitoring active in the background
+- [x] Stopping monitoring terminates the foreground service and removes sensor polling
+- [x] Caregiver SOS alarm loops until the caregiver opens the app and taps "Stop SOS Alarm"
+- [x] Monitoring stops before either profile signs out
+- [x] Monitoring status indicator and accessible controls on both profiles
 - [ ] Background sensor monitoring (Android foreground service via `expo-task-manager`)
 - [ ] Handle app kill / restart gracefully
 - [ ] Rate-limit alerts (prevent duplicate alerts within 30s)

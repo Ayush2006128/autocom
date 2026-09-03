@@ -1,0 +1,6 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "modules": ["com.ayush2006128.foreground.ForegroundServiceModule"]
+  }
+}

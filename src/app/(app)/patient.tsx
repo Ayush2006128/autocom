@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,11 @@ import { Colors } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
 import { useFallDetection, type AlertSeverity } from "@/hooks/useFallDetection";
 import { createAlert, cancelAlert, escalateAlert } from "@/lib/firestore";
+import {
+  isForegroundMonitoringRunning,
+  startForegroundMonitoring,
+  stopForegroundMonitoring,
+} from "@/lib/foreground-service";
 
 // ── Severity display config ────────────────────────────────────
 
@@ -52,6 +57,34 @@ const SEVERITY_CONFIG: Record<AlertSeverity, {
 
 export default function PatientDashboard() {
   const { user, userDoc, signOut } = useAuth();
+  const [monitoring, setMonitoring] = useState(false);
+  const [serviceLoading, setServiceLoading] = useState(true);
+
+  useEffect(() => {
+    isForegroundMonitoringRunning()
+      .then(setMonitoring)
+      .finally(() => setServiceLoading(false));
+  }, []);
+
+  const toggleMonitoring = async () => {
+    setServiceLoading(true);
+    try {
+      if (monitoring) {
+        await stopForegroundMonitoring();
+        setMonitoring(false);
+      } else {
+        await startForegroundMonitoring();
+        setMonitoring(true);
+      }
+    } finally {
+      setServiceLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await stopForegroundMonitoring();
+    await signOut();
+  };
 
   const handleGreenTrigger = useCallback(async () => {
     const alertId = await createAlert(
@@ -76,6 +109,7 @@ export default function PatientDashboard() {
     onGreenTrigger: handleGreenTrigger,
     onEscalate: handleEscalate,
     onCancel: handleCancel,
+    enabled: monitoring,
   });
 
   const config = SEVERITY_CONFIG[severity];
@@ -95,7 +129,12 @@ export default function PatientDashboard() {
     <View style={styles.container}>
       <View style={styles.topBar}>
         <Text style={styles.greeting}>Hi, {user?.displayName ?? "Patient"} 👋</Text>
-        <TouchableOpacity onPress={signOut} style={styles.signOutBtn}>
+        <TouchableOpacity
+          onPress={handleSignOut}
+          style={styles.signOutBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+        >
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
@@ -105,6 +144,38 @@ export default function PatientDashboard() {
         <Text style={styles.codeLabel}>Your Patient Code</Text>
         <Text style={styles.codeValue}>{userDoc?.patientId ?? "------"}</Text>
         <Text style={styles.codeHint}>Tap to share with caregivers</Text>
+      </TouchableOpacity>
+
+      <View
+        style={styles.monitorStatus}
+        accessibilityLabel={
+          monitoring
+            ? "Background monitoring is active"
+            : "Background monitoring is stopped"
+        }
+      >
+        <View
+          style={[
+            styles.monitorStatusDot,
+            { backgroundColor: monitoring ? Colors.green : Colors.disabled },
+          ]}
+        />
+        <Text style={styles.monitorStatusText}>
+          {monitoring ? "Background monitoring active" : "Monitoring stopped"}
+        </Text>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.monitorBtn, monitoring ? styles.stopBtn : styles.startBtn]}
+        onPress={toggleMonitoring}
+        disabled={serviceLoading}
+        accessibilityRole="button"
+        accessibilityLabel={monitoring ? "Stop monitoring" : "Start monitoring"}
+        accessibilityState={{ disabled: serviceLoading }}
+      >
+        <Text style={styles.monitorBtnText}>
+          {serviceLoading ? "Updating…" : monitoring ? "Stop Monitoring" : "Start Monitoring"}
+        </Text>
       </TouchableOpacity>
 
       {/* Status Indicator — changes color based on severity */}
@@ -241,6 +312,36 @@ const styles = StyleSheet.create({
     color: Colors.textOnPrimary,
     fontSize: 20,
     fontWeight: "800",
+  },
+  monitorBtn: {
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  startBtn: { backgroundColor: Colors.teal },
+  stopBtn: { backgroundColor: Colors.red },
+  monitorBtnText: {
+    color: Colors.textOnPrimary,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  monitorStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  monitorStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  monitorStatusText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
   },
   infoCard: {
     backgroundColor: Colors.surface,

@@ -57,9 +57,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    const fetchedDoc = await getUserDoc(cred.user.uid);
-    setUserDoc(fetchedDoc);
+    // Keep the auth guard on the loading screen until the auth listener has
+    // fetched the profile. Otherwise it can see the new user with a null
+    // userDoc and incorrectly redirect to role selection.
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      setLoading(false);
+      throw error;
+    }
   };
 
   const register = async (
